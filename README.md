@@ -1,2 +1,2 @@
 # dfc605
-DFC Project Repository
+DFC605 Basic Artificial Intelligence Theory - Final Project
