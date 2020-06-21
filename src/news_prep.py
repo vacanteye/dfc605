@@ -21,7 +21,8 @@ def get_refined_content(title, content):
 
     #Remove Relevant Articles
     content = strip_tag(content, '<!-- r_start', 'r_end //-->')
- 
+
+
     #Remove comments
     #content = re.sub(r"\[(.)*?\]", "", content) #Non Greedy Match
 
@@ -31,8 +32,10 @@ def get_refined_content(title, content):
         s.extract()
 
     content = soup.get_text().strip()
-    #content = strip_tag(content, '<', '>')
 
+    #Remove Special Characters
+    content = re.sub('[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z]', ' ', content).strip()
+ 
     if content.startswith('내용이 없습니다. !') or len(content) == 0:
         return title
 
@@ -137,6 +140,7 @@ for period in periods:
     conn_out.close()
 
     print('DONE: {}'.format(fname)) 
+    break
 
 
 '''
