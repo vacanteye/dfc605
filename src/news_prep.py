@@ -2,17 +2,35 @@ import sqlite3, glob, os, re
 import pandas as pd
 from pathlib import Path
 from bs4 import BeautifulSoup
+from konlpy.tag import Kkma     #Very Slow
+from konlpy.tag import Okt      #Normal
+from konlpy.tag import Mecab    #Normal
+from konlpy.tag import Hannanum
 
+tokenizer = Hannanum()
+stopwords = []
+
+# 
+def remove_stopwords(text):
+    if len(stopwords) == 0:
+        fp = open('../dat/stopwords_ko.txt', 'r')
+        for line in fp:
+            stopwords.append(line)
+    for word in stopwords:
+        text = text.replace(word, '')
+
+#
 def strip_tag(text, stag, etag):
     #Remove Related Articles
     while True:
         spos = text.find(stag)
-        epos = text.find(etag)
+        epos = text.find(etag, spos+1)
         if spos == -1 or epos == -1:
             break
         text = text[:spos] + text[epos+len(etag):]
     return text
 
+#
 def get_refined_content(title, content):
     #Remove Prefix    
     pos = content.find('text://')
@@ -22,25 +40,28 @@ def get_refined_content(title, content):
     #Remove Relevant Articles
     content = strip_tag(content, '<!-- r_start', 'r_end //-->')
 
-
-    #Remove comments
-    #content = re.sub(r"\[(.)*?\]", "", content) #Non Greedy Match
-
     #Remove 'a' Tags
     soup = BeautifulSoup(content, 'html.parser')
     for s in soup.select('a'):
         s.extract()
 
-    content = soup.get_text().strip()
+    content = soup.get_text()
+
+    # Remove Source & Reporter
+    content = strip_tag(content, '[', ']')
 
     #Remove Special Characters
+    #content = re.sub('[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z0-9]', ' ', content).strip()
     content = re.sub('[^가-힣ㄱ-ㅎㅏ-ㅣa-zA-Z]', ' ', content).strip()
- 
-    if content.startswith('내용이 없습니다. !') or len(content) == 0:
-        return title
+
+    #Use title if content marked empty
+    if content.startswith('내용이 없습니다') or len(content) == 0:
+        content = title
+        content = strip_tag(content, '[', ']')
 
     return content
 
+#
 def get_daily_periods(dates):
     periods = []
     for date in dates:
@@ -48,6 +69,7 @@ def get_daily_periods(dates):
         periods.append((date_str, date_str))
     return periods
 
+#
 def get_weekly_periods(dates):
     # Day of Week  : datetime.weekday()
     # Week of Year : datetime.isocalendar()[1]
@@ -76,7 +98,7 @@ def get_weekly_periods(dates):
     return periods
 
 
-
+#
 #Input Period
 while True:
     try:
@@ -119,11 +141,14 @@ for period in periods:
                          'data': 'content'}, inplace=True)
 
     df['date'] = pd.to_datetime(df['date'], format='%Y%m%d%H%M%S')
-    df.insert(5, 'refined', '')
+    df.insert(5, 'plain', '')
+    df.insert(6, 'nouns', '')
 
     for index, row in df.iterrows():
-        refined_content = get_refined_content(row['title'], row['content'])
-        df.loc[index, 'refined'] = refined_content
+        plain_content = get_refined_content(row['title'], row['content'])
+        df.loc[index, 'plain'] = plain_content
+        df.loc[index, 'nouns'] = ' '.join(tokenizer.nouns(plain_content))
+        print(index, row['title'])
 
     fname = ''
     if period[0] == period[1]:
@@ -142,15 +167,6 @@ for period in periods:
     print('DONE: {}'.format(fname)) 
     break
 
-
-'''
-except sqlite3.Error as e:
-    print('Database error: %s' % e)
-except Exception as e:
-    print('Exception: %s' % e)
-finally:
-    if conn: conn.close()
-'''
-
-if conn: conn.close()
+if conn: 
+    conn.close()
 
