@@ -55,8 +55,8 @@ df = pd.read_sql_query('SELECT title,nouns FROM news_table LIMIT {}'.format(n_da
 conn.close()
 
 titles = df['title'].tolist()
-#docs = df['nouns'].tolist()
-docs = df['title'].tolist()
+docs = df['nouns'].tolist()
+#docs = df['title'].tolist()
 
 # Vectorizing
 vectorizer = CountVectorizer()
@@ -93,7 +93,7 @@ for i in range(n_clusters):
     count_vector = None
     for index in cluster_indexes:
         vector = bows[index].todense().getA().ravel()
-        count_vector = vector + vector if count_vector is not None else vector
+        count_vector = count_vector + vector if count_vector is not None else vector
 
     cluster_keywords = []
     if count_vector is not None:
