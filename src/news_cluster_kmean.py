@@ -2,12 +2,18 @@ import sqlite3, pdb
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
 from sklearn.cluster import KMeans
-from konlpy.tag import Hannanum
-from scipy.cluster.hierarchy import dendrogram
+from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.cluster import AgglomerativeClustering
+
+from scipy.cluster.hierarchy import dendrogram
+from scipy import sparse
+from scipy.spatial import distance
+
+from konlpy.tag import Hannanum
 
 tokenizer = Hannanum()
 stopwords = []
@@ -46,8 +52,9 @@ def plot_dendrogram(model, **kwargs):
     dendrogram(linkage_matrix, **kwargs)
 
 # Configurations
-n_clusters = 50
-n_data_size = 2000
+n_data_size = 100
+n_clusters = 5
+n_cluster_freqwords = 7
     
 # Load Data
 conn = sqlite3.connect('../dat/news_daily_20200501.db')
@@ -61,43 +68,40 @@ docs = df['nouns'].tolist()
 # Vectorizing
 vectorizer = CountVectorizer()
 
-# Clustering
-bows = vectorizer.fit_transform(docs) # Bag of Words
+# Document-Term Matrix
+dtm = vectorizer.fit_transform(docs)
 
 # Features
 words = vectorizer.get_feature_names()
 
-# L2 normalizing
-X = normalize(bows)
+# L2 Normalizing
+X = normalize(dtm)
 
 # Cluster with K-Means
 kmeans = KMeans(n_clusters=n_clusters).fit(X)
 
-# trained labels and cluster centers
+# Clustring Results
 clusters = kmeans.labels_
 centers = kmeans.cluster_centers_
 
-
-articles = {'title': titles, 'cluster': clusters.tolist()}
-df = pd.DataFrame(articles, index=[clusters], columns=['title', 'cluster'])
+# Insert Result Column
+df['cluster'] = clusters
 
 for i in range(n_clusters):
 
-    #select row with given cluster
-    cluster_frame = df.loc[df['cluster'] == i]  
+    #Select row with given cluster
+    cdf = df.loc[df['cluster'] == i]  
 
-    #Frequent Words
-    cluster_indexes = np.where(clusters == i)
-    if len(cluster_indexes) != 0: cluster_indexes = cluster_indexes[0] #tuple to ndarray
+    #Calculate frequent words : sum of rows to vector
+    count_vector = dtm[cdf.index].sum(axis=0).getA().ravel()
 
-    count_vector = None
-    for index in cluster_indexes:
-        vector = bows[index].todense().getA().ravel()
-        count_vector = count_vector + vector if count_vector is not None else vector
+    #Calculate Distance
+    center = sparse.csr_matrix(centers[i])
+    dist_vectors = pairwise_distances(X[cdf.index], center).ravel()
 
     cluster_keywords = []
     if count_vector is not None:
-        word_indexes = count_vector.argsort()[::-1][:7] #top 5 word indexes
+        word_indexes = count_vector.argsort()[::-1][:n_cluster_freqwords] #top words
         for word_index in word_indexes:
             keyword = words[word_index]
             count = count_vector[word_index]
@@ -105,11 +109,13 @@ for i in range(n_clusters):
 
     cluster_keywords = ','.join(cluster_keywords)
 
-    print("cluster:{} articles:{} keywords:{}".format(i+1, len(cluster_frame), cluster_keywords))
+    print("cluster:{} articles:{} keywords:{}".format(i+1, len(cdf), cluster_keywords))
 
-    title_list = '\n '.join(cluster_frame['title'].values.tolist())
+    cluster_titles = cdf['title'].values.tolist()
+    articles = ['[{:.2f}]{}'.format(dist_vectors[i],cluster_titles[i]) for i in range(len(cluster_titles))]
+    title_list = '\n '.join(articles)
+
     print(' {}'.format(title_list))
     print()
 
 print('title:{}, cluster:{}'.format(len(titles), n_clusters))
-
