@@ -4,12 +4,10 @@ import numpy as np
 
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
-from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.cluster import AgglomerativeClustering
 
 from scipy import sparse
-from scipy.spatial import distance
+from soyclustering import SphericalKMeans
 
 from konlpy.tag import Hannanum
 
@@ -49,7 +47,7 @@ vectorizer = CountVectorizer(
     ngram_range=ngram_range
 )
 
-# Document-Term Matrix
+# Document-Term Matrix: VSM(Vector Space Model)
 dtm = vectorizer.fit_transform(docs)
 
 # Features
@@ -59,11 +57,15 @@ words = vectorizer.get_feature_names()
 X = normalize(dtm)
 
 # Cluster with K-Means
-kmeans = KMeans(
+spherical_kmeans = SphericalKMeans(
     n_clusters=n_clusters,
-    max_iter = max_iter,
-    verbose = 0
-).fit(X)
+    max_iter=max_iter,
+    verbose=0,
+    init='similar_cut',
+    sparsity='minimum_df',
+    minimum_df_factor=0.05
+)
+kmeans = spherical_kmeans.fit(X)
 
 # Clustring Results
 clusters = kmeans.labels_
@@ -71,19 +73,18 @@ centers = kmeans.cluster_centers_
 
 # Insert Result Column
 df['cluster'] = clusters
-df['distance'] = 0
 
 for i in range(n_clusters):
 
     #Select row with given cluster
-    cdf = df.loc[df['cluster'] == i].sort_index(ascending=False)  
+    cdf = df.loc[df['cluster'] == i].sort_index(ascending=False)
 
     #Calculate frequent words : sum of rows to vector
     count_vector = dtm[cdf.index].sum(axis=0).getA().ravel()
 
     #Calculate Distance
     center = sparse.csr_matrix(centers[i])
-    dist_vectors = pairwise_distances(X[cdf.index], center, metric='euclidean').ravel()
+    dist_vectors = pairwise_distances(X[cdf.index], center, metric='cosine').ravel()
     cdf['distance'] = dist_vectors
 
     cluster_topwords = []
@@ -99,9 +100,10 @@ for i in range(n_clusters):
     # Cluster Infos
     print("Cluster:{} Articles:{} Topwords:{}".format(i+1, len(cdf), cluster_topwords))
 
+    # Cluster Titles
     cluster_titles = ['{:.2f} - {} - {}'.format(row['distance'], row['date'], row['title']) for i, row in cdf.iterrows()]
     cluster_titles = '\n '.join(cluster_titles)
     print(' {}'.format(cluster_titles))
     print()
 
-print('title:{}, cluster:{}'.format(len(titles), n_clusters))
+    print('title:{}, cluster:{}'.format(len(titles), n_clusters))
