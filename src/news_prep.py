@@ -148,7 +148,7 @@ for period in periods:
         plain_content = get_refined_content(row['title'], row['content'])
         df.loc[index, 'plain'] = plain_content
         df.loc[index, 'nouns'] = ' '.join(tokenizer.nouns(plain_content))
-        print(index, row['title'])
+        #print(index, row['title'])
 
     fname = ''
     if period[0] == period[1]:
@@ -165,7 +165,6 @@ for period in periods:
     conn_out.close()
 
     print('DONE: {}'.format(fname)) 
-    break
 
 if conn: 
     conn.close()
