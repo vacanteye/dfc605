@@ -1,3 +1,7 @@
+'''
+    Brief : News Dataset Preprocessing
+    Author: Dong-Jun Kim, DFC605 2020
+'''
 import sqlite3, glob, os, re
 import pandas as pd
 from pathlib import Path

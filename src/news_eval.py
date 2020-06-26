@@ -1,3 +1,7 @@
+'''
+    Brief : Clustering Count Evaluation
+    Author: Dong-Jun Kim, DFC605 2020
+'''
 import sqlite3, pdb
 import pandas as pd
 import numpy as np
