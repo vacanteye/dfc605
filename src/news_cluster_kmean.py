@@ -1,24 +1,26 @@
-import sqlite3, pdb
+import sqlite3, pdb, sys
 import pandas as pd
 import numpy as np
 import news_dataset
 
 from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+
 from sklearn.preprocessing import normalize
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import pairwise_distances
-from scipy import sparse
 
+from scipy import sparse
 from soyclustering import SphericalKMeans
 
 # Static Configuration
-n_samples = 100
-n_clusters = 5
+n_samples = 1000
+n_clusters = 50
 verbose = 0
 
 max_iter = 300
 n_top_words = 7
-ngram_range = (1,2)
+ngram_range = (1,1)
 
 # Conditional Configurations
 i_metric = 1
@@ -51,7 +53,7 @@ while True:
             print('Invalid value')
             continue
     except:
-        print('')
+        print(sys.exc_info())
         exit(1)
 
 
@@ -73,8 +75,8 @@ while True:
             print('Invalid value')
             continue
     except:
-        print('')
-        exit(1)
+        print(sys.exc_info())
+        exit(2)
 
    
 # Load Data
@@ -84,17 +86,21 @@ titles = df['title'].tolist()
 docs = df['nouns'].tolist()
 #docs = df['title'].tolist()
 
-# Document-Term Matrix
-dtm = vectorizer.fit_transform(docs)
+# Document-Term Matrix for Word Counting
+dtm = CountVectorizer().fit_transform(docs)
+
+# Selected Vectorizer
+X = vectorizer.fit_transform(docs)
 
 # Word List
 words = vectorizer.get_feature_names()
 
 # L2 Normalizing
-X = normalize(dtm) if i_metric == 1 else dtm
+if i_vectorizer == 1:
+    X = normalize(X)
 
 # Document Clustring
-model.fit(X)
+model = model.fit(X)
 
 # Clustring Results
 clusters = model.labels_

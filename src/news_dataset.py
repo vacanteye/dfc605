@@ -11,7 +11,7 @@ def fetch_news_samples(date, count):
         return None
 
     conn = sqlite3.connect(fname)
-    sql = 'SELECT date,title,code,nouns FROM news_table LIMIT {}'.format(count)
+    sql = 'SELECT date,title,nouns FROM news_table LIMIT {}'.format(count)
     df = pd.read_sql_query(sql, conn)
     conn.close()
 
