@@ -32,6 +32,11 @@ def get_topics(model, feature_names, n_top_words):
         topics.append(message)
     return topics
 
+def log(fp, message):
+    print(message)
+    fp.write(message)
+    fp.write('\n')
+
 # Static Configuration
 n_samples = 200
 n_clusters = 20
@@ -143,6 +148,11 @@ df['distance'] = 0
 
 metric = 'euclidean' if i_metric == 1 else 'cosine'
 
+figname = '../out/fig_{}_{}.png'.format(i_metric, i_vectorizer)
+logname = '../out/out_{}_{}.log'.format(i_metric, i_vectorizer)
+
+fp = open(logname, 'w')
+
 for i in range(n_clusters):
 
     #Select row with given cluster
@@ -181,21 +191,24 @@ for i in range(n_clusters):
     cluster_topwords = ' '.join(cluster_topwords)
 
     # Cluster Infos
-    print('Cluster #{}: {} article(s)'.format(i+1, len(cdf)))
-    print('  Words Counting:{}'.format(cluster_topwords))
-    print('  LDA Topics    :{}'.format(topics))
+    log(fp, 'Cluster #{}: {} article(s)'.format(i+1, len(cdf)))
+    log(fp, '  Words Counting:{}'.format(cluster_topwords))
+    log(fp, '  LDA Topics    :{}'.format(topics))
 
     cluster_titles = ['{:.2f}-{}'.format(row['distance'], row['title']) for i, row in cdf.iterrows()]
-    cluster_titles = '\n    '.join(cluster_titles[:5])
-    print('    {}'.format(cluster_titles))
-    print('    ...')
-    print()
+    #cluster_titles = '\n    '.join(cluster_titles[:5])
+    cluster_titles = '\n    '.join(cluster_titles)
+    log(fp, '    {}'.format(cluster_titles))
+    log(fp, '    ...')
+    log(fp,'')
 
-print('title:{}, cluster:{}'.format(len(titles), n_clusters))
+log(fp, 'title:{}, cluster:{}'.format(len(titles), n_clusters))
+
+fp.close()
 
 # 3D Graphs
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='viridis')
-plt.show()
+plt.savefig(figname)
 
