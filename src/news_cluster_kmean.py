@@ -18,20 +18,28 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.preprocessing import normalize
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.decomposition import PCA, NMF, LatentDirichletAllocation 
 
-from sklearn.decomposition import TruncatedSVD
-from sklearn.decomposition import PCA
-
-from sklearn.cluster import KMeans          #Euclidian Distance (Least Squared)
+from sklearn.cluster import KMeans          #Euclidian Distance
 from soyclustering import SphericalKMeans   #Cosine Distance
 
+def get_topics(model, feature_names, n_top_words):
+    topics = []
+    for topic_idx, topic in enumerate(model.components_):
+        #message = "Topic #{}: ".format(topic_idx+1)
+        message = ''
+        message += " ".join([feature_names[i] for i in topic.argsort()[:-n_top_words - 1:-1]])
+        topics.append(message)
+    return topics
+
 # Static Configuration
-n_samples = 2000
-n_clusters = 150
+n_samples = 200
+n_clusters = 20
 verbose = 0
 
 max_iter = 300
-n_top_words = 7
+n_top_words = 5
+n_topics = 1
 ngram_range = (1,1)
 
 # Conditional Configurations
@@ -140,8 +148,21 @@ for i in range(n_clusters):
     #Select row with given cluster
     cdf = df.loc[df['cluster'] == i].sort_index(ascending=False)  
 
-    #Calculate frequent words : sum of rows to vector
+    #Top words using Word Countring
     count_vector = dtm[cdf.index].sum(axis=0).getA().ravel()
+
+    #Top words using LDA
+    cluster_samples = X[cdf.index]
+    lda = LatentDirichletAllocation(
+        n_components=n_topics, max_iter=max_iter,
+        learning_method='online',
+        learning_offset=50.,
+        random_state=0,
+        verbose=0
+    )
+    lda.fit(cluster_samples)
+    topics = get_topics(lda, words, n_top_words)
+    topics = '\n '.join(topics)
 
     #Calculate Distance
     center = sparse.csr_matrix(centers[i])
@@ -154,30 +175,27 @@ for i in range(n_clusters):
         for word_index in word_indexes:
             keyword = words[word_index]
             count = count_vector[word_index]
-            cluster_topwords.append('{}({})'.format(keyword, count))
+            #cluster_topwords.append('{}({})'.format(keyword, count))
+            cluster_topwords.append('{}'.format(keyword, count))
 
-    cluster_topwords = ','.join(cluster_topwords)
+    cluster_topwords = ' '.join(cluster_topwords)
 
     # Cluster Infos
-    print("Cluster:{} Articles:{} Topwords:{}".format(i+1, len(cdf), cluster_topwords))
+    print('Cluster #{}: {} article(s)'.format(i+1, len(cdf)))
+    print('  Words Counting:{}'.format(cluster_topwords))
+    print('  LDA Topics    :{}'.format(topics))
 
-    cluster_titles = ['{:.2f} - {} - {}'.format(row['distance'], row['date'], row['title']) for i, row in cdf.iterrows()]
-    cluster_titles = '\n '.join(cluster_titles)
-    print(' {}'.format(cluster_titles))
+    cluster_titles = ['{:.2f}-{}'.format(row['distance'], row['title']) for i, row in cdf.iterrows()]
+    cluster_titles = '\n    '.join(cluster_titles[:5])
+    print('    {}'.format(cluster_titles))
+    print('    ...')
     print()
 
 print('title:{}, cluster:{}'.format(len(titles), n_clusters))
-
-'''
-# 2D Graph
-plt.scatter(x_pos, y_pos, c=clusters, cmap='viridis')
-plt.show()
-'''
 
 # 3D Graphs
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='viridis')
-#ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='hsv')
 plt.show()
 

@@ -12,10 +12,12 @@ from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_samples, silhouette_score
+from soyclustering import SphericalKMeans   #Cosine Distance
+
 
 # Configurations
 n_init = 1
-max_iter = 300
+max_iter = 50
 n_samples = 2000
 n_cluster_freqwords = 7
 ngram_range = (1,1)
@@ -39,11 +41,14 @@ inertias = []
 scores = []
 ks = range(50, 1001, 50)
 for n_clusters in ks:
-    clusterer = KMeans(
-        n_init = n_init,
-        n_clusters=n_clusters, 
-        verbose=1,
-        max_iter=max_iter
+
+    clusterer = SphericalKMeans(
+        n_clusters=n_clusters,
+        max_iter=max_iter,
+        init='similar_cut',
+        sparsity='minimum_df',
+        minimum_df_factor=0.05,
+        verbose=1
     )
 
     cluster_labels = clusterer.fit_predict(X)
