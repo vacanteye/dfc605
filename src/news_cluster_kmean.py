@@ -18,7 +18,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.preprocessing import normalize
 from sklearn.metrics.pairwise import pairwise_distances
+
 from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import PCA
 
 from sklearn.cluster import KMeans          #Euclidian Distance (Least Squared)
 from soyclustering import SphericalKMeans   #Cosine Distance
@@ -102,19 +104,23 @@ dtm = CountVectorizer().fit_transform(docs)
 # Selected Vectorizer
 X = vectorizer.fit_transform(docs)
 
-# Generate Visualization Info using Dimension Redunction
-svd = TruncatedSVD(n_components=3)
-pos = svd.fit_transform(X)
-x_pos = pos[:,0]
-y_pos = pos[:,1]
-z_pos = pos[:,2]
-
 # Word List
 words = vectorizer.get_feature_names()
 
 # L2 Normalizing
 if i_vectorizer == 1:
     X = normalize(X)
+
+# Generate Visualization Info using Dimension Redunction
+'''
+svd = TruncatedSVD(n_components=3)
+pos = svd.fit_transform(X)
+'''
+pca = PCA(n_components=3)
+pos = pca.fit_transform(X.todense())
+x_pos = pos[:,0]
+y_pos = pos[:,1]
+z_pos = pos[:,2]
 
 # Document Clustring
 model = model.fit(X)
@@ -171,7 +177,7 @@ plt.show()
 # 3D Graphs
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-#ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='viridis')
-ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='hsv')
+ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='viridis')
+#ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='hsv')
 plt.show()
 

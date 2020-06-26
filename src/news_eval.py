@@ -2,6 +2,7 @@ import sqlite3, pdb
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
+import news_dataset
 
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
@@ -11,15 +12,12 @@ from sklearn.metrics import silhouette_samples, silhouette_score
 # Configurations
 n_init = 1
 max_iter = 300
-n_data_size = 2000
+n_samples = 200
 n_cluster_freqwords = 7
-ngram_range = (1,2)
+ngram_range = (1,1)
 
 # Load Data
-conn = sqlite3.connect('../dat/news_daily_20200501.db')
-df = pd.read_sql_query('SELECT date,title,nouns FROM news_table LIMIT {}'.format(n_data_size), conn)
-conn.close()
-
+df = news_dataset.fetch_news_samples('20200501', n_samples)
 docs = df['nouns'].tolist()
 
 # Vectorizing
@@ -34,7 +32,8 @@ dtm = vectorizer.fit_transform(docs)
 X = normalize(dtm)
 
 inertias = []
-ks = range(20, 200+1, 20)
+scores = []
+ks = range(10, 200, 10)
 for n_clusters in ks:
     clusterer = KMeans(
         n_init = n_init,
@@ -51,12 +50,21 @@ for n_clusters in ks:
     print()
 
     inertias.append(clusterer.inertia_)
+    scores.append(silhouette_avg)
     
 # Plot ks vs inertias
-plt.plot(ks, inertias, '-o')
-plt.xlabel('number of clusters, k')
-plt.ylabel('inertia')
-plt.xticks(ks)
+fig, ax1 = plt.subplots()
+color = 'tab:blue'
+ax1.set_xlabel('number of clusters')
+ax1.set_ylabel('inertia', color=color)
+ax1.plot(ks, inertias, '-o', color=color)
+
+ax2 = ax1.twinx()
+color = 'tab:red'
+ax2.set_ylabel('silhouette score', color=color)
+ax2.plot(ks, scores, '-s', color=color)
+
+fig.tight_layout()
 plt.show()
 #plt.savefig('../../assets/images/markdown_img/kmean_clustering_20180513.svg')
 
