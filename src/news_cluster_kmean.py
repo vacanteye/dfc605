@@ -1,77 +1,110 @@
 import sqlite3, pdb
 import pandas as pd
 import numpy as np
+import news_dataset
 
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.preprocessing import normalize
 from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import pairwise_distances
-from sklearn.cluster import AgglomerativeClustering
-
 from scipy import sparse
-from scipy.spatial import distance
 
-from konlpy.tag import Hannanum
+from soyclustering import SphericalKMeans
 
-tokenizer = Hannanum()
-stopwords = []
-
-def preprocessing(doc):
-    nouns = tokenizer.nouns(doc)
-    return ' '.join(nouns)
-
-def read_dic(fname):
-    results = []
-    fp = open(fname, 'r')
-    for line in fp:
-        results.append(line.splitlines()[0])
-    fp.close()
-    return results
-
-# Configurations
-max_iter = 300
-n_data_size = 100
+# Static Configuration
+n_samples = 100
 n_clusters = 5
-n_cluster_freqwords = 7
+verbose = 0
+
+max_iter = 300
+n_top_words = 7
 ngram_range = (1,2)
-    
+
+# Conditional Configurations
+i_metric = 1
+i_vectorizer = 1
+model = None
+vectorizer = None
+
+# Select Distance Metric
+while True:
+    try:
+        i_metric = int(input("Select vector distance metic {1:Euclidian, 2:Cosine}: "))
+        if i_metric == 1:
+            model = KMeans(
+                n_clusters=n_clusters,
+                max_iter = max_iter,
+                verbose = verbose
+            )
+            break
+        elif i_metric == 2:
+            model = SphericalKMeans(
+                n_clusters=n_clusters,
+                max_iter=max_iter,
+                init='similar_cut',
+                sparsity='minimum_df',
+                minimum_df_factor=0.05,
+                verbose=verbose
+            )
+            break
+        else:
+            print('Invalid value')
+            continue
+    except:
+        print('')
+        exit(1)
+
+
+# Select Document Vectorizer
+while True:
+    try:
+        i_vectorizer = int(input("Select Vectorizer {1:CountVectorizer, 2:TF-IDF}: "))
+        if i_vectorizer == 1:
+            vectorizer = CountVectorizer(
+                ngram_range=ngram_range
+            )
+            break
+        elif i_vectorizer == 2:
+            vectorizer = TfidfVectorizer(
+                ngram_range=ngram_range
+            )
+            break
+        else:
+            print('Invalid value')
+            continue
+    except:
+        print('')
+        exit(1)
+
+   
 # Load Data
-conn = sqlite3.connect('../dat/news_daily_20200501.db')
-df = pd.read_sql_query('SELECT date,title,nouns FROM news_table LIMIT {}'.format(n_data_size), conn)
-conn.close()
+df = news_dataset.fetch_news_samples('20200501', n_samples)
 
 titles = df['title'].tolist()
 docs = df['nouns'].tolist()
 #docs = df['title'].tolist()
 
-# Vectorizing
-vectorizer = CountVectorizer(
-    ngram_range=ngram_range
-)
-
 # Document-Term Matrix
 dtm = vectorizer.fit_transform(docs)
 
-# Features
+# Word List
 words = vectorizer.get_feature_names()
 
 # L2 Normalizing
-X = normalize(dtm)
+X = normalize(dtm) if i_metric == 1 else dtm
 
-# Cluster with K-Means
-kmeans = KMeans(
-    n_clusters=n_clusters,
-    max_iter = max_iter,
-    verbose = 0
-).fit(X)
+# Document Clustring
+model.fit(X)
 
 # Clustring Results
-clusters = kmeans.labels_
-centers = kmeans.cluster_centers_
+clusters = model.labels_
+centers = model.cluster_centers_
 
 # Insert Result Column
 df['cluster'] = clusters
 df['distance'] = 0
+
+metric = 'euclidean' if i_metric == 1 else 'cosine'
 
 for i in range(n_clusters):
 
@@ -83,12 +116,12 @@ for i in range(n_clusters):
 
     #Calculate Distance
     center = sparse.csr_matrix(centers[i])
-    dist_vectors = pairwise_distances(X[cdf.index], center, metric='euclidean').ravel()
+    dist_vectors = pairwise_distances(X[cdf.index], center, metric=metric).ravel()
     cdf['distance'] = dist_vectors
 
     cluster_topwords = []
     if count_vector is not None:
-        word_indexes = count_vector.argsort()[::-1][:n_cluster_freqwords] #top words
+        word_indexes = count_vector.argsort()[::-1][:n_top_words] #top words
         for word_index in word_indexes:
             keyword = words[word_index]
             count = count_vector[word_index]
