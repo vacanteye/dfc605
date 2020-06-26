@@ -1,21 +1,31 @@
+'''
+    Brief : News Summarization using K-Means Clustering
+    Author: Dong-Jun Kim, DFC605 2020
+'''
+
 import sqlite3, pdb, sys
 import pandas as pd
 import numpy as np
 import news_dataset
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+
+from scipy import sparse
+
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 
 from sklearn.preprocessing import normalize
-from sklearn.cluster import KMeans
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.decomposition import TruncatedSVD
 
-from scipy import sparse
-from soyclustering import SphericalKMeans
+from sklearn.cluster import KMeans          #Euclidian Distance (Least Squared)
+from soyclustering import SphericalKMeans   #Cosine Distance
 
 # Static Configuration
-n_samples = 1000
-n_clusters = 50
+n_samples = 2000
+n_clusters = 150
 verbose = 0
 
 max_iter = 300
@@ -92,6 +102,13 @@ dtm = CountVectorizer().fit_transform(docs)
 # Selected Vectorizer
 X = vectorizer.fit_transform(docs)
 
+# Generate Visualization Info using Dimension Redunction
+svd = TruncatedSVD(n_components=3)
+pos = svd.fit_transform(X)
+x_pos = pos[:,0]
+y_pos = pos[:,1]
+z_pos = pos[:,2]
+
 # Word List
 words = vectorizer.get_feature_names()
 
@@ -106,7 +123,7 @@ model = model.fit(X)
 clusters = model.labels_
 centers = model.cluster_centers_
 
-# Insert Result Column
+# Result Columns
 df['cluster'] = clusters
 df['distance'] = 0
 
@@ -144,3 +161,17 @@ for i in range(n_clusters):
     print()
 
 print('title:{}, cluster:{}'.format(len(titles), n_clusters))
+
+'''
+# 2D Graph
+plt.scatter(x_pos, y_pos, c=clusters, cmap='viridis')
+plt.show()
+'''
+
+# 3D Graphs
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+#ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='viridis')
+ax.scatter(x_pos, y_pos, z_pos, c = clusters, cmap='hsv')
+plt.show()
+
