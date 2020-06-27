@@ -145,13 +145,18 @@ centers = model.cluster_centers_
 # Result Columns
 df['cluster'] = clusters
 df['distance'] = 0
+df['topic'] = 0
 
 metric = 'euclidean' if i_metric == 1 else 'cosine'
 
 figname = '../out/fig_{}_{}.png'.format(i_metric, i_vectorizer)
 logname = '../out/out_{}_{}.log'.format(i_metric, i_vectorizer)
+csvname = '../out/out_{}_{}.csv'.format(i_metric, i_vectorizer)
 
-fp = open(logname, 'w')
+flog = open(logname, 'w')
+fcsv = open(csvname, 'w')
+
+fcsv.write('Cluster,Topic,Title\n')
 
 for i in range(n_clusters):
 
@@ -173,6 +178,7 @@ for i in range(n_clusters):
     lda.fit(cluster_samples)
     topics = get_topics(lda, words, n_top_words)
     topics = '\n '.join(topics)
+    cdf['topic'] = topics.splitlines()[0]
 
     #Calculate Distance
     center = sparse.csr_matrix(centers[i])
@@ -191,20 +197,29 @@ for i in range(n_clusters):
     cluster_topwords = ' '.join(cluster_topwords)
 
     # Cluster Infos
-    log(fp, 'Cluster #{}: {} article(s)'.format(i+1, len(cdf)))
-    log(fp, '  Words Counting:{}'.format(cluster_topwords))
-    log(fp, '  LDA Topics    :{}'.format(topics))
+    log(flog, 'Cluster #{}: {} article(s)'.format(i+1, len(cdf)))
+    log(flog, '  Words Counting:{}'.format(cluster_topwords))
+    log(flog, '  LDA Topics    :{}'.format(topics))
 
-    cluster_titles = ['{:.2f}-{}'.format(row['distance'], row['title']) for i, row in cdf.iterrows()]
+    cluster_titles = ['{:.2f}-{}'.format(row['distance'], row['title']) 
+        for i, row in cdf.iterrows()]
+
     #cluster_titles = '\n    '.join(cluster_titles[:5])
     cluster_titles = '\n    '.join(cluster_titles)
-    log(fp, '    {}'.format(cluster_titles))
-    log(fp, '    ...')
-    log(fp,'')
+    log(flog, '    {}'.format(cluster_titles))
+    log(flog, '    ...')
+    log(flog,'')
 
-log(fp, 'title:{}, cluster:{}'.format(len(titles), n_clusters))
+    csv_lines = ['{},{},{}\n'.format(row['cluster'], row['topic'], row['title'].replace(',',' ')) 
+        for i, row in cdf.iterrows()]
 
-fp.close()
+    for line in csv_lines:
+        fcsv.write(line)
+
+log(flog, 'title:{}, cluster:{}'.format(len(titles), n_clusters))
+
+flog.close()
+fcsv.close()
 
 # 3D Graphs
 fig = plt.figure()
